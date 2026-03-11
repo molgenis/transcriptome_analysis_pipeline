@@ -1,4 +1,4 @@
-# RNA outlier pipeline 
+# transcriptome-analysis-pipeline 
 
 This pipeline is based on OUTRIDER version 1.20.1 and FRASER version 1.99.4 (see "References").
 These versions of OUTRIDER and FRASER were distributed under the MIT license. For more recent versions check out the corresponding repositories. 
@@ -51,10 +51,10 @@ Add these images to a folder called containers
 
 ## References
 
-Brechtmann F, Mertes C, Matusevičiūtė A, et al. OUTRIDER: A Statistical Method for Detecting Aberrantly Expressed Genes in RNA Sequencing Data. Am J Hum Genet. 2018;103(6):907-917. https://doi.org/10.1016/j.ajhg.2018.10.025
+Brechtmann F, Mertes C, Matusevi??i??t?? A, et al. OUTRIDER: A Statistical Method for Detecting Aberrantly Expressed Genes in RNA Sequencing Data. Am J Hum Genet. 2018;103(6):907-917. https://doi.org/10.1016/j.ajhg.2018.10.025
 
 Scheller, I.F., Lutz, K., Mertes, C et al. Improved detection of aberrant splicing with FRASER 2.0 and the intron Jaccard index. Am Jrnl Hum Genet 110, 12 (2023). https://doi.org/10.1016/j.ajhg.2023.10.014
 
 Yepez, V. A., Gusic, M., Kopajtich, R., Meitinger, T., Gagneur, J., & Prokisch, H. (2021). Gene expression and splicing counts from the Yepez, Gusic et al study - non strand-specific (1.2) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.7126296
 
-Yépez, V. A., Smith, N. H., Mertes, C., & Gagneur, J. (2022). Gene expression and splicing counts from 49 tissues from GTEx v8 genome build hg38 - non-strand specific (1.0) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.6078397
+Y??pez, V. A., Smith, N. H., Mertes, C., & Gagneur, J. (2022). Gene expression and splicing counts from 49 tissues from GTEx v8 genome build hg38 - non-strand specific (1.0) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.6078397
