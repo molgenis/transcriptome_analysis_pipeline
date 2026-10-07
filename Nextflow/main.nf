@@ -19,6 +19,7 @@ workflow Outrider_Fraser_MAE_nf {
     .fromPath( params.samplesheet )
     .splitCsv( header: true, sep: '\t' )
     .map { row -> tuple( row.sampleID, row.bamFile, row.pairedEnd, row.strandSpecific ) }
+    | OutriderCount
     | view { row }
     | collect
     | set { merge_ch }
