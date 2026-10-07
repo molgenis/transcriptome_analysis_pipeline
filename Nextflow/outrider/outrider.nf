@@ -20,7 +20,8 @@ process OutriderCount {
         path "${sampleID}_outrider_counts.tsv"
     script:
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.outridercountsR} ${sampleID} ${bamFile} ${params.featurecounts.genes_gtf} ${pairedEnd} ${strandSpecific}
+        ml "${params.RbundelBioconductor}"
+        Rscript "${params.outrider.outridercountsR}" "${sampleID}" "${bamFile}" "${params.featurecounts.genes_gtf}" "${pairedEnd}" "${strandSpecific}"
         """
 }
 
@@ -36,9 +37,9 @@ process MergeOutridercounts {
     output:
         path "merged_outrider_counts.txt"
     script:
-    
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.mergecountsR} ${inputFiles}
+        ml "${params.RbundelBioconductor}"
+        Rscript ${params.outrider.mergecountsR} ${inputFiles}
         """
 }
 
@@ -57,7 +58,8 @@ process CreateOutriderDataset{
 
     script: 
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.outriderDatasetR} "${outriderCounts}" "${samplesheet}" "${params.extcounts.folder}" "${params.extcounts.amount_outrider}" "${params.featurecounts.genes_gtf}"
+        ml "${params.RbundelBioconductor}"
+        Rscript "${params.outrider.outriderDatasetR}" "${outriderCounts}" "${samplesheet}" "${params.extcounts.folder}" "${params.extcounts.amount_outrider}" "${params.featurecounts.genes_gtf}"
         """
 }
 
@@ -74,7 +76,8 @@ process OutriderOptim{
 
     script: 
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.outriderOptimR} "${outriderDataset}" "${q_value}"
+        ml "${params.RbundelBioconductor}"
+        Rscript "${params.outrider.outriderOptimR}" "${outriderDataset}" "${q_value}"
         """
 }
 
@@ -92,7 +95,8 @@ process MergeQfiles {
         path "merged_q_files.tsv"
     script:
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.mergeQFiles} ${inputFiles}
+        ml "${params.RbundelBioconductor}"
+        Rscript ${params.outrider.mergeQFiles} ${inputFiles}
         """
 }
 
@@ -111,6 +115,7 @@ process Outrider {
 
     script: 
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.outriderR} "${outriderDataset}" "${qfile}" "${samplesheet}" "final_outrider.rds" "result_table_outrider.tsv" "${params.genomeBuild}"
+        ml "${params.RbundelBioconductor}"
+        Rscript ${params.outrider.outriderR} ${outriderDataset} ${qfile} ${samplesheet} final_outrider.rds result_table_outrider.tsv ${params.genomeBuild}
         """
 }

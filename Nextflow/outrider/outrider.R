@@ -12,10 +12,9 @@
 library(OUTRIDER)
 library(dplyr)
 library(tidyr)
-library("AnnotationDbi")
-library("org.Hs.eg.db")
-library("data.table")
-library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(data.table)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 
 
@@ -57,9 +56,11 @@ saveRDS(ods, file=rds_out_path)
 
 # Filter data based on samples present in samplesheet
 res <- res[res$sampleID %in% samplesheet$sampleID]
+print(paste0("res: ",res ))
 
 # Get genesymbols and reorder the dataframe
 Ensembl_stripped <- unlist(lapply(strsplit(as.character(res$geneID), "[.]"), '[[', 1))
+print(paste0("Ensembl stripped: ",Ensembl_stripped))
 
 res$hgncSymbol = mapIds(org.Hs.eg.db,
                     keys=Ensembl_stripped, 

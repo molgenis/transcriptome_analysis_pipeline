@@ -20,6 +20,7 @@ workflow Outrider_Fraser_MAE_nf {
     .splitCsv( header: true, sep: '\t' )
     .map { row -> tuple( row.sampleID, row.bamFile, row.pairedEnd, row.strandSpecific ) }
     | OutriderCount
+    | view { row }
     | collect
     | set { merge_ch }
 
@@ -103,7 +104,54 @@ workflow Outrider_Fraser_MAE_nf {
 
 }
 
+
+workflow Outrider_counts_nf {
+
+    Channel
+    .fromPath( params.samplesheet )
+    .splitCsv( header: true, sep: '\t' )
+    .map { row -> row.expressionFile }
+    | view { "expression file: ${it}" }
+    | collect
+    | set { merge_ch }
+
+    // Merge the separate counts from the merge channel and create a OUTRIDER Dataset
+    merge_ch
+    | MergeOutridercounts
+    | map { it -> tuple( it, params.samplesheet ) }
+    | CreateOutriderDataset
+    | set { optim_ch }
+
+    // Find the optimal Q for the dataset.
+    optim_ch
+    .map { it -> it[1] }
+    .splitCsv( header: false, sep: '\t' )
+    .map { row -> tuple( "$params.output/outrider/outrider.rds", row )} //Hacky to include the outputdir outrider.rds.
+    | OutriderOptim
+    | collect
+    | MergeQfiles
+    | set { outrider_ch }
+    
+    // Start OUTRIDER
+    outrider_ch
+    | map { it -> tuple( "$params.output/outrider/outrider.rds", it, params.samplesheet )} //Hacky to include the outputdir outrider.rds.
+    | Outrider
+    
+}
+
+
 workflow {
-    // Run the workflows
-    Outrider_Fraser_MAE_nf()
+
+    if (params.mode == 'counts') {
+
+        Outrider_counts_nf()
+
+    } else if (params.mode == 'bam') {
+
+        Outrider_Fraser_MAE_nf()
+
+    } else {
+
+        error "Invalid mode parameter: ${params.mode}"
+    }
 }
