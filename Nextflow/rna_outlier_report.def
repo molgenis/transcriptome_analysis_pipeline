@@ -1,0 +1,34 @@
+Bootstrap: docker
+From: python:3.10-slim
+
+%labels
+    Author Tim
+    Version 1.0.0
+    Description "Container for the creation of rna_outlier_pipeline html reports"
+
+%environment
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export PYTHONUNBUFFERED=1
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        curl \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Upgrade pip
+    pip install --no-cache-dir --upgrade pip
+
+    # Install Python packages
+    pip install --no-cache-dir \
+        pandas \
+        plotly \
+        numpy \
+        jinja2 \
+        gprofiler-official
+
+%runscript
+    echo "Container is ready. Run your Python script like:"
+    echo "  singularity run  python script.py"
