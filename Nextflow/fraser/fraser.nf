@@ -145,6 +145,45 @@ process MergeCounts {
 
 }
 
+process FraserPrepareQ {
+    // grid of encoding dimensions for the hyperparameter search
+    time '2h'
+    memory { 64.GB * task.attempt }
+    cpus 1
+
+    input:
+        path fraser_in, stageAs: "fraser_in"
+        path prepareqR
+    output:
+        path "q_values.txt"
+
+    script:
+        """
+        ${CMD_OUTRIDER_FRASER} Rscript "${prepareqR}" "fraser_in"
+        """
+}
+
+
+process FraserOptimQ {
+    // hyperparameter search for ONE encoding dimension (one job per q)
+    time { 8.h * task.attempt }
+    memory { 64.GB * task.attempt }
+    cpus 2
+
+    input:
+        val q
+        path fraser_in, stageAs: "fraser_in"
+        path optimqR
+    output:
+        path "${q}_hyperparams.tsv"
+
+    script:
+        """
+        ${CMD_OUTRIDER_FRASER} Rscript "${optimqR}" "fraser_in" ${q}
+        """
+}
+
+
 process Fraser {
     time '20h'
     memory '80 GB'
@@ -155,6 +194,8 @@ process Fraser {
     input:
         path samplesheet
         path fraser_in, stageAs: "fraser_in"
+        path hyperparams      // all <q>_hyperparams.tsv
+        path qvalues
         path fraserR
 
     output:

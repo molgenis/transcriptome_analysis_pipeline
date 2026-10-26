@@ -11,7 +11,7 @@ One samplesheet drives everything. Per sample:
 nextflow.enable.dsl=2
 
 include { Outrider; OutriderCount; OutriderQC; MergeOutridercounts; CreateOutriderDataset; OutriderOptim; MergeQfiles } from "./outrider/outrider"
-include { Fraser; MergeCounts; FraserSplitCount; FraserMergeSplit; FraserNonSplitCount; FraserFinalize } from "./fraser/fraser"
+include { Fraser; FraserPrepareQ; FraserOptimQ; MergeCounts; FraserSplitCount; FraserMergeSplit; FraserNonSplitCount; FraserFinalize } from "./fraser/fraser"
 include { MAEreadCounting; GetMAEresults; SplitVCFs; ConcatMAEResults } from "./MAE/MAE"
 include { ResultsToHtml } from "./html_report/report"
 
@@ -116,7 +116,19 @@ workflow Outrider_Fraser_MAE_nf {
                        FraserNonSplitCount.out.collect())
 
         MergeCounts(params.extcounts.folder, params.fraser.mergescriptR, FraserFinalize.out, params.extcounts.amount_fraser)
-        Fraser(params.samplesheet, MergeCounts.out, params.fraser.fraserR)
+
+        // Hyperparameter search (encoding dimension q): one job per q, then the fit
+        FraserPrepareQ(MergeCounts.out, params.fraser.prepareQR)
+
+        q_ch = FraserPrepareQ.out
+        .splitText()
+        .map { it.trim() }
+        .filter { it }
+
+        FraserOptimQ(q_ch, MergeCounts.out.first(), params.fraser.optimQR)
+
+        Fraser(params.samplesheet, MergeCounts.out, FraserOptimQ.out.collect(),
+               FraserPrepareQ.out, params.fraser.fraserR)
 
         fraser_results = Fraser.out
     } else {

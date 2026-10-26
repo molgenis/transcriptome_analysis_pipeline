@@ -15,6 +15,7 @@ library(tidyr)
 library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(data.table)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 
 

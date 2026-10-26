@@ -46,6 +46,7 @@ Add these images to a folder called containers
 | pairedEnd   | TRUE or FALSE | Yes  | - | 
 | excludeFit   | exclude this sample from autoencoder fit (TRUE or FALSE) | No  | FALSE |
 | genePanel | hgnc genes in a .txt one gene per row, or a 3 column .bed file | No | - | 
+| expressionFile | transcript counts for OUTRIDER, same annotations (.gtf) as external/new samples | No | - |
 
 
 
