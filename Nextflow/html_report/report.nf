@@ -44,6 +44,12 @@ process ResultsToHtml {
             mae_path="\${sampleid}_result_mae.tsv"
             output_path="\${sampleid}_report.html"
 
+            # Samples without a bam (OUTRIDER only) have no FRASER results: no report
+            if [[ ! -f "\$fraser_path" ]]; then
+                echo "No FRASER results for \${sampleid}, skipping report"
+                continue
+            fi
+
             # Handle optional MAE file
             if [[ -f "\$mae_path" ]]; then
                 echo "\$mae_path"

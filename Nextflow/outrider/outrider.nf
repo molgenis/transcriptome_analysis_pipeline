@@ -17,11 +17,35 @@ process OutriderCount {
     input:
         tuple val(sampleID), path(bamFile), val(pairedEnd), val(strandSpecific)
     output:
-        path "${sampleID}_outrider_counts.tsv"
+        path "${sampleID}_outrider_counts.tsv", emit: counts
+        path "${sampleID}_outrider_count_summary.tsv", emit: summary
     script:
         """
         ml "${params.RbundelBioconductor}"
         Rscript "${params.outrider.outridercountsR}" "${sampleID}" "${bamFile}" "${params.featurecounts.genes_gtf}" "${pairedEnd}" "${strandSpecific}"
+        """
+}
+
+process OutriderQC {
+    // Finds broken samples / wrong strandedness before the counts are merged.
+    // Uses the featureCounts summaries (bam-counted samples) and the count tables.
+    time '10m'
+    memory '4 GB'
+    cpus 1
+
+    publishDir "$params.output/counts", mode: 'copy'
+
+    input:
+        path countFiles
+        path summaryFiles
+        path samplesheet
+        path qcScript
+    output:
+        path "outrider_qc.tsv"
+    script:
+        def stop = params.outrider.qcStopOnFail ? '--stop-on-fail' : ''
+        """
+        ${params.outrider.qcPython} "${qcScript}" --samplesheet "${samplesheet}" --out outrider_qc.tsv ${stop} --summaries ${summaryFiles} --counts ${countFiles}
         """
 }
 
