@@ -88,7 +88,7 @@ process OutriderOptim{
     // Outrider optimize functions
     time { 4.h * task.attempt }
     memory { 16.GB * task.attempt }
-    cpus 1
+    cpus 4
 
     input:
         tuple path(outriderDataset), val(q_value)
@@ -122,18 +122,19 @@ process MergeQfiles {
 process Outrider {
     time { 4.h * task.attempt }
     memory { 32.GB * task.attempt }
-    cpus 1
+    cpus 4
 
     publishDir "$params.output/outrider", mode: 'copy'
 
     input:
         tuple path(outriderDataset), path(qfile), path(samplesheet)
+        path annotation
     output:
         path "*.rds"
         path "*.tsv"
 
     script: 
         """
-        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.outriderR} ${outriderDataset} ${qfile} ${samplesheet} final_outrider.rds result_table_outrider.tsv ${params.genomeBuild}
+        ${CMD_OUTRIDER_FRASER} Rscript ${params.outrider.outriderR} ${outriderDataset} ${qfile} ${samplesheet} final_outrider.rds result_table_outrider.tsv ${annotation}
         """
 }

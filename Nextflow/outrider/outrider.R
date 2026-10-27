@@ -6,17 +6,13 @@
 #' Argument 3= samplesheet
 #' Argument 4= output path ods
 #' Argument 5= output path res
-#' Argument 6= optional genome build (hg19 or hg38)
+#' Argument 6= gene annotation table (gene_annotation.tsv, made from the GTF)
 
 
 library(OUTRIDER)
 library(dplyr)
 library(tidyr)
-library(AnnotationDbi)
-library(org.Hs.eg.db)
 library(data.table)
-library(TxDb.Hsapiens.UCSC.hg19.knownGene)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 
 
 if(.Platform$OS.type == "unix") {
@@ -41,7 +37,7 @@ print(paste0("Optimal q is: ",opt_q))
 
 rds_out_path <- args[4]
 res_out_path <- args[5]
-genome_build <- args[6]
+annotation_file <- args[6]
 
 iter <- 15
 
@@ -59,51 +55,26 @@ saveRDS(ods, file=rds_out_path)
 res <- res[res$sampleID %in% samplesheet$sampleID]
 print(paste0("res: ",res ))
 
-# Get genesymbols and reorder the dataframe
-Ensembl_stripped <- unlist(lapply(strsplit(as.character(res$geneID), "[.]"), '[[', 1))
-print(paste0("Ensembl stripped: ",Ensembl_stripped))
-
-res$hgncSymbol = mapIds(org.Hs.eg.db,
-                    keys=Ensembl_stripped, 
-                    column="SYMBOL",
-                    keytype="ENSEMBL",
-                    multiVals="first")
-
-res$entrezid = mapIds(org.Hs.eg.db,
-                    keys=Ensembl_stripped, 
-                    column="ENTREZID",
-                    keytype="ENSEMBL",
-                    multiVals="first")
-
-names(res)[names(res) == 'geneID'] <- 'EnsemblID'
-
-# Annotate chr start end.
-if (genome_build == "hg19") {
-    txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
-} else {
-    txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+# Gene annotation from the same GTF that was used for counting (offline, no
+# org.Hs.eg.db / TxDb versions involved).
+anno <- fread(annotation_file)
+idx <- match(res$geneID, anno$gene_id)
+# fall back to the ID without version suffix (e.g. external counts from another release)
+nover <- is.na(idx)
+idx[nover] <- match(sub("\\..*$", "", res$geneID[nover]), anno$gene_id_nover)
+message(sprintf("%.1f%% of the result genes were found in the annotation",
+                100 * mean(!is.na(idx))))
+if (all(is.na(idx))) {
+    stop("None of the OUTRIDER genes is in the annotation table; ",
+         "are the gene IDs from the same GTF?")
 }
 
-res$chr = mapIds(txdb,
-                    keys=res$entrezid, 
-                    column="TXCHROM",
-                    keytype="GENEID",
-                    multiVals="first")
+res$hgncSymbol <- anno$gene_name[idx]
+res$chr   <- sub("^chr", "", anno$chr[idx])
+res$start <- anno$start[idx]
+res$end   <- anno$end[idx]
 
-res$start = mapIds(txdb,
-                    keys=res$entrezid, 
-                    column="TXSTART",
-                    keytype="GENEID",
-                    multiVals="first")
-
-res$end = mapIds(txdb,
-                    keys=res$entrezid, 
-                    column="TXEND",
-                    keytype="GENEID",
-                    multiVals="first")
-
-# remove chr, to match the other results.
-res$chr <- sub('^\\chr', '', res$chr)
+names(res)[names(res) == 'geneID'] <- 'EnsemblID'
 
 # solve issue unimplemented type 'list' in 'EncodeElement'? https://stackoverflow.com/questions/24829027/unimplemented-type-list-when-trying-to-write-table
 # as dataframe, because it complains about being an atomic vector??

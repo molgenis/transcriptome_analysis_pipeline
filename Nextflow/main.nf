@@ -13,6 +13,7 @@ nextflow.enable.dsl=2
 include { Outrider; OutriderCount; OutriderQC; MergeOutridercounts; CreateOutriderDataset; OutriderOptim; MergeQfiles } from "./outrider/outrider"
 include { Fraser; FraserPrepareQ; FraserOptimQ; MergeCounts; FraserSplitCount; FraserMergeSplit; FraserNonSplitCount; FraserFinalize } from "./fraser/fraser"
 include { MAEreadCounting; GetMAEresults; SplitVCFs; ConcatMAEResults } from "./MAE/MAE"
+include { GeneAnnotation } from "./annotation/annotation"
 include { ResultsToHtml } from "./html_report/report"
 
 // true when a samplesheet cell holds a value (not missing, empty or "NA")
@@ -75,10 +76,14 @@ workflow Outrider_Fraser_MAE_nf {
     | MergeQfiles
     | set { outrider_ch }
 
+    // Gene annotation (one table from the counting GTF, for OUTRIDER and FRASER)
+    GeneAnnotation( params.featurecounts.genes_gtf, params.annotation.script )
+
     // Start OUTRIDER
-    outrider_ch
-    | map { it -> tuple( "$params.output/outrider/outrider.rds", it, params.samplesheet )} //Hacky to include the outputdir outrider.rds.
-    | Outrider
+    outrider_final_ch = outrider_ch
+    .map { it -> tuple( "$params.output/outrider/outrider.rds", it, params.samplesheet )} //Hacky to include the outputdir outrider.rds.
+
+    Outrider( outrider_final_ch, GeneAnnotation.out )
 
     /* 
     Gagneurlab Fraser Nextflow implementation with external counts, for the samples with a bam.
@@ -128,7 +133,7 @@ workflow Outrider_Fraser_MAE_nf {
         FraserOptimQ(q_ch, MergeCounts.out.first(), params.fraser.optimQR)
 
         Fraser(params.samplesheet, MergeCounts.out, FraserOptimQ.out.collect(),
-               FraserPrepareQ.out, params.fraser.fraserR)
+               FraserPrepareQ.out, params.fraser.fraserR, GeneAnnotation.out)
 
         fraser_results = Fraser.out
     } else {
@@ -160,7 +165,7 @@ workflow Outrider_Fraser_MAE_nf {
     .groupTuple(by: 0)
     | ConcatMAEResults
 
-    GetMAEresults(ConcatMAEResults.out, params.mae.resultsR, params.mae.annotateGeneR)
+    GetMAEresults(ConcatMAEResults.out, params.mae.resultsR, params.mae.annotateGeneR, GeneAnnotation.out)
 
     genepanel_ch = Channel
     .fromList( rows )

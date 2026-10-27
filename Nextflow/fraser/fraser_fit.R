@@ -5,14 +5,12 @@
 #' 28-10-2023 (updated 27-01-2025)
 #' Argument 1: Samplesheet
 #' Argument 2= Input/output 
-#' Argument 3= Genome build (hg38 or hg19)
+#' Argument 3= gene annotation table (gene_annotation.tsv, made from the GTF)
+#' Argument 4= gene types to annotate with (comma separated, or 'all'), default protein_coding
 
 library(FRASER)
 library(dplyr)
 library(data.table)
-library(TxDb.Hsapiens.UCSC.hg19.knownGene)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(org.Hs.eg.db)
 
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -26,7 +24,45 @@ if(.Platform$OS.type == "unix") {
 
 workdir <- args[2]
 
-genome_build <- args[3]
+annotation_file <- args[3]
+biotypes <- if (length(args) >= 4) strsplit(args[4], ",")[[1]] else "protein_coding"
+
+# ---- offline gene annotation ------------------------------------------------
+gene_feature <- function(ranges, featureName, annotation){
+    if (any(strand(ranges) == "*")) strand(annotation) <- "*"
+    hits <- suppressWarnings(findOverlaps(ranges, annotation))
+    dt <- data.table(from = queryHits(hits),
+                     feature = mcols(annotation)[[featureName]][subjectHits(hits)])
+    agg <- dt[, .(feature = paste(unique(feature), collapse = ";")), by = from]
+    out <- rep(NA_character_, length(ranges))
+    out[agg$from] <- agg$feature
+    out
+}
+
+annotate_from_table <- function(fds, annofile, biotypes, featureName = "hgnc_symbol"){
+    anno <- fread(annofile)
+    if (!identical(biotypes, "all")) anno <- anno[gene_type %in% biotypes]
+    anno <- anno[!is.na(gene_name) & gene_name != ""]
+    stopifnot(nrow(anno) > 0)
+    chr <- sub("^chr", "", anno$chr)
+    if (all(startsWith(seqlevels(fds), "chr"))) chr <- paste0("chr", chr)
+    gr <- GRanges(chr, IRanges(anno$start, anno$end), strand = anno$strand)
+    mcols(gr)[[featureName]] <- anno$gene_name
+
+    for (type in c("theta", "j")) {
+        mcols(fds, type = type)[[featureName]] <-
+            gene_feature(rowRanges(fds, type = type), featureName, gr)
+    }
+    share <- mean(!is.na(mcols(fds, type = "j")[[featureName]]))
+    message(sprintf("%.1f%% of the junctions were annotated with a gene",
+                    100 * share))
+    if (share == 0) {
+        stop("No junction could be annotated. Do the chromosome names of the ",
+             "data and the GTF match, and does the GTF have gene_name?")
+    }
+    fds
+}
+
 
 # Load original sample table
 
@@ -59,11 +95,7 @@ set.seed(42)
 fds <- FRASER(fds, q=c(jaccard=best_q))
 
 
-if (genome_build == "hg19") {
-    fds <- annotateRanges(fds, GRCh = 37)
-} else {
-    fds <- annotateRanges(fds, GRCh = 38)
-}
+fds <- annotate_from_table(fds, annotation_file, biotypes)
 
 
 fds <- calculatePadjValues(fds, type="jaccard", geneLevel=TRUE) # geneLevel TRUE -> FALSE

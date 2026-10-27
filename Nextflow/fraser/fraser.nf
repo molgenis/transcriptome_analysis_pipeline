@@ -16,7 +16,7 @@ nextflow.enable.dsl=2
 process FraserSplitCount {
     time { 4.h * task.attempt }
     memory { 16.GB * task.attempt }
-    cpus 2
+    cpus 4
 
     input:
         tuple val(sampleID), path(bamFile), path(baiFile)
@@ -168,7 +168,7 @@ process FraserOptimQ {
     // hyperparameter search for ONE encoding dimension (one job per q)
     time { 8.h * task.attempt }
     memory { 64.GB * task.attempt }
-    cpus 2
+    cpus 4
 
     input:
         val q
@@ -185,9 +185,9 @@ process FraserOptimQ {
 
 
 process Fraser {
-    time '20h'
-    memory '80 GB'
-    cpus 6
+    time { 8.h * task.attempt }
+    memory { 64.GB * task.attempt }
+    cpus 4
 
     publishDir "$params.output/fraser", mode: 'copy'
 
@@ -197,6 +197,7 @@ process Fraser {
         path hyperparams      // all <q>_hyperparams.tsv
         path qvalues
         path fraserR
+        path annotation
 
     output:
 
@@ -206,6 +207,6 @@ process Fraser {
         """
         # work on a private copy: the R script saves into its input directory
         cp -rL fraser_in fraser_work
-        ${CMD_OUTRIDER_FRASER} Rscript "${fraserR}" "${samplesheet}" "fraser_work" "${params.genomeBuild}"
+        ${CMD_OUTRIDER_FRASER} Rscript "${fraserR}" "${samplesheet}" "fraser_work" "${annotation}" "${params.annotation.biotypesFraser}"
         """
 }
