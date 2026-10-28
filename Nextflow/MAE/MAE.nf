@@ -79,6 +79,7 @@ process GetMAEresults {
         path asecounts
         path resultsR
         path annotateGeneR
+        path annotation
 
     output:
         
@@ -87,7 +88,7 @@ process GetMAEresults {
     script:
         """
         ${CMD_MAE} Rscript "${resultsR}" "${asecounts}" "${sampleid}_result_mae_tmp.tsv" "${sampleid}"
-        ${CMD_OUTRIDER_FRASER} Rscript "${annotateGeneR}" "${sampleid}_result_mae_tmp.tsv" "${sampleid}_result_mae.tsv" "${params.genomeBuild}"
+        ${CMD_OUTRIDER_FRASER} Rscript "${annotateGeneR}" "${sampleid}_result_mae_tmp.tsv" "${sampleid}_result_mae.tsv" "${annotation}"
         """
 
 }
