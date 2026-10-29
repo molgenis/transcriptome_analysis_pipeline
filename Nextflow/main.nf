@@ -10,9 +10,11 @@ One samplesheet drives everything. Per sample:
 **/
 nextflow.enable.dsl=2
 
-include { Outrider; OutriderCount; OutriderQC; MergeOutridercounts; CreateOutriderDataset; OutriderOptim; MergeQfiles } from "./outrider/outrider"
-include { Fraser; FraserPrepareQ; FraserOptimQ; MergeCounts; FraserSplitCount; FraserMergeSplit; FraserNonSplitCount; FraserFinalize } from "./fraser/fraser"
+include { Outrider; OutriderCount; OutriderQC; MergeOutridercounts; CreateOutriderDataset; OutriderOptim; MergeQfiles } from "./expression/outrider/outrider"
+include { Fraser; FraserPrepareQ; FraserOptimQ; MergeCounts; FraserSplitCount; FraserMergeSplit; FraserNonSplitCount; FraserFinalize } from "./splicing/fraser/fraser"
 include { MAEreadCounting; GetMAEresults; SplitVCFs; ConcatMAEResults } from "./MAE/MAE"
+include { SjToJunc; SplitToJunc; LeafcutterCluster; LeafcutterSplit; LeafcutterMD; LeafcutterResults } from "./splicing/leafcutter/leafcutter"
+include { Deseq2 } from "./expression/deseq2/deseq2"
 include { GeneAnnotation } from "./annotation/annotation"
 include { ResultsToHtml } from "./html_report/report"
 
@@ -92,6 +94,7 @@ workflow Outrider_Fraser_MAE_nf {
       -> FraserDataSet + PSI values -> merge external counts -> fit
     */
     fraser_results = Channel.empty()
+    fraser_split_ch = Channel.empty()
 
     if ( fraser_rows ) {
         if ( params.fraser.strandedCounting && params.extcounts.amount_fraser > 0 ) {
@@ -103,6 +106,7 @@ workflow Outrider_Fraser_MAE_nf {
         .map { row -> tuple( row.sampleID, file(row.bamFile), file("${row.bamFile}.bai") ) }
 
         FraserSplitCount(fraser_samples_ch, params.samplesheet, params.fraser.splitCountR)
+        fraser_split_ch = FraserSplitCount.out
 
         FraserMergeSplit(
             FraserSplitCount.out.collect(),
@@ -138,6 +142,56 @@ workflow Outrider_Fraser_MAE_nf {
         fraser_results = Fraser.out
     } else {
         log.warn "No sample has a bamFile: FRASER, MAE and the report are skipped (OUTRIDER only)."
+    }
+
+    /*
+    LeafcutterMD (outlier splicing). Junctions per sample come from
+      - the STAR SJ.out.tab when the samplesheet has an sjFile, otherwise
+      - the FRASER split read counts of the bam.
+    */
+    if ( params.leafcutter.enabled ) {
+        lc_sj  = rows.findAll { hasValue(it.sjFile) }
+        lc_bam = rows.findAll { !hasValue(it.sjFile) && hasValue(it.bamFile) }
+        lc_n   = lc_sj.size() + lc_bam.size()
+
+        if ( lc_n < params.leafcutter.minSamples ) {
+            log.warn "LeafcutterMD skipped: ${lc_n} samples with junctions, at least ${params.leafcutter.minSamples} are needed (leafcutter.minSamples)."
+        } else {
+            SjToJunc(
+                Channel.fromList( lc_sj ).map { row -> tuple( row.sampleID, file(row.sjFile, checkIfExists: true) ) },
+                params.leafcutter.sjScript
+            )
+
+            // bam-only samples: FraserSplitCount has made <sampleID>.splitCounts.RDS for them
+            lc_bam_ids = lc_bam.collect { it.sampleID + '.splitCounts.RDS' }
+            SplitToJunc(
+                fraser_split_ch.filter { it.name in lc_bam_ids },
+                params.leafcutter.splitToJuncR
+            )
+
+            LeafcutterCluster( SjToJunc.out.mix( SplitToJunc.out ).collect() )
+            LeafcutterSplit( LeafcutterCluster.out, params.leafcutter.splitScript )
+            LeafcutterMD( LeafcutterSplit.out.flatten() )
+            LeafcutterResults(
+                LeafcutterMD.out.collect(),
+                params.samplesheet,
+                GeneAnnotation.out,
+                params.leafcutter.resultsScript
+            )
+        }
+    }
+
+    /*
+    DESeq2 differential expression between the groups of the samplesheet
+    */
+    if ( params.deseq2.enabled ) {
+        groups = rows.findAll { hasValue(it.group) }.collect { it.group.toString().trim() }
+        n_ok = groups.countBy { it }.findAll { it.value >= 2 }.size()
+        if ( n_ok < 2 ) {
+            log.warn "DESeq2 skipped: it needs a 'group' column with at least two groups of at least two samples."
+        } else {
+            Deseq2( MergeOutridercounts.out, params.samplesheet, GeneAnnotation.out, params.deseq2.script )
+        }
     }
 
     /*
