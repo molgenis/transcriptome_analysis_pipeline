@@ -23,7 +23,7 @@ def hasValue(v) {
     return v != null && v.toString().trim() != '' && v.toString().trim() != 'NA'
 }
 
-workflow Outrider_Fraser_MAE_nf {
+workflow TAP_nf {
 
     rows = file( params.samplesheet ).splitCsv( header: true, sep: '\t' )
 
@@ -240,5 +240,5 @@ workflow Outrider_Fraser_MAE_nf {
 
 
 workflow {
-    Outrider_Fraser_MAE_nf()
+    TAP_nf()
 }
